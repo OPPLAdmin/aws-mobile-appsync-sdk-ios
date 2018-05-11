@@ -5,11 +5,22 @@
 
 import Dispatch
 
+
+extension Notification.Name {
+    public static let appSyncSubConnectionStateUnknown = Notification.Name(rawValue: "com.appsync.sub.connection.state.unknown")
+    public static let appSyncSubConnectionStateConnecting = Notification.Name(rawValue: "com.appsync.sub.connection.state.connecting")
+    public static let appSyncSubConnectionStateConnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.connected")
+    public static let appSyncSubConnectionStateConnectionErr = Notification.Name(rawValue: "com.appsync.sub.connection.state.err")
+    public static let appSyncSubConnectionStateConnectionRefused = Notification.Name(rawValue: "com.appsync.sub.connection.state.refused")
+    public static let appSyncConnectionStateDisconnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.disconnected")
+}
+
 protocol MQTTSubscritionWatcher {
     func getIdentifier() -> Int
     func getTopics() -> [String]
     func messageCallbackDelegate(data: Data)
     func disconnectCallbackDelegate(error: Error)
+    func otherConnectionCallbackDelegate(status: MQTTStatus)
 }
 
 class SubscriptionsOrderHelper {
@@ -43,6 +54,8 @@ class SubscriptionsOrderHelper {
 
 /// A `AWSAppSyncSubscriptionWatcher` is responsible for watching the subscription, and calling the result handler with a new result whenever any of the data is published on the MQTT topic. It also normalizes the cache before giving the callback to customer.
 public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscription>: MQTTSubscritionWatcher, Cancellable {
+
+    
     
     weak var client: AppSyncMQTTClient?
     weak var httpClient: AWSAppSyncHTTPNetworkTransport?
@@ -106,6 +119,12 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     
     func disconnectCallbackDelegate(error: Error) {
         self.resultHandler(nil, nil, error)
+    }
+    
+    func otherConnectionCallbackDelegate(status: MQTTStatus) {
+        
+//        send notification about the status
+        print("otherconnection call back delegate with status: \(status), subscriptiontopicArr = \(subscriptionTopic)")
     }
     
     func messageCallbackDelegate(data: Data) {
