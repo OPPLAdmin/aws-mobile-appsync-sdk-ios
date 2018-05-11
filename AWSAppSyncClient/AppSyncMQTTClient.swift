@@ -6,6 +6,16 @@
 import Foundation
 import Reachability
 
+
+extension Notification.Name {
+    public static let appSyncSubConnectionStateUnknown = Notification.Name(rawValue: "com.appsync.sub.connection.state.unknown")
+    public static let appSyncSubConnectionStateConnecting = Notification.Name(rawValue: "com.appsync.sub.connection.state.connecting")
+    public static let appSyncSubConnectionStateConnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.connected")
+    public static let appSyncSubConnectionStateConnectionErr = Notification.Name(rawValue: "com.appsync.sub.connection.state.err")
+    public static let appSyncSubConnectionStateConnectionRefused = Notification.Name(rawValue: "com.appsync.sub.connection.state.refused")
+    public static let appSyncConnectionStateDisconnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.disconnected")
+}
+
 class AppSyncMQTTClient: MQTTClientDelegate {
     
     var mqttClient = MQTTClient<AnyObject, AnyObject>()
@@ -38,14 +48,19 @@ class AppSyncMQTTClient: MQTTClientDelegate {
        //prepare to refactor this part
 //        switch status {
 //        case .unknown:
+//            NotificationCenter.default.post(name: .appSyncSubConnectionStateUnknown, object: nil)
 //        case .connecting:
+//            NotificationCenter.default.post(name: .appSyncSubConnectionStateConnecting, object: nil)
 //        case .connected:
 //        case .connectionError:
 //        case .connectionRefused
 //        case .disconnected:
 //        }
-//
+
+        
+        
         if status.rawValue == 2 {
+            print("connected state, topics for the single mqttclient are \(mqttClientsWithTopics[mqttClient])")
             for topic in mqttClientsWithTopics[mqttClient]! {
                 mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
             }
@@ -57,7 +72,7 @@ class AppSyncMQTTClient: MQTTClientDelegate {
                     let error = AWSAppSyncSubscriptionError(additionalInfo: "Subscription Terminated.", errorDetails:  [
                         "recoverySuggestion" : "Restart subscription request.",
                         "failureReason" : "Disconnected from service."])
-                    
+
                     subscriber.disconnectCallbackDelegate(error: error)
                 }
             }
