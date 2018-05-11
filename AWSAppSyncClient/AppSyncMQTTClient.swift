@@ -34,6 +34,17 @@ class AppSyncMQTTClient: MQTTClientDelegate {
     }
     
     func connectionStatusChanged(_ status: MQTTStatus, client mqttClient: MQTTClient<AnyObject, AnyObject>) {
+        
+       //prepare to refactor this part
+//        switch status {
+//        case .unknown:
+//        case .connecting:
+//        case .connected:
+//        case .connectionError:
+//        case .connectionRefused
+//        case .disconnected:
+//        }
+//
         if status.rawValue == 2 {
             for topic in mqttClientsWithTopics[mqttClient]! {
                 mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
