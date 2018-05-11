@@ -50,6 +50,10 @@ class AppSyncMQTTClient: MQTTClientDelegate {
         case .connected:
             for topic in mqttClientsWithTopics[mqttClient]! {
                 mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
+                let subscribers = topicSubscribersDictionary[topic]
+                for subscriber in subscribers! {
+                    subscriber.otherConnectionCallbackDelegate(status: status)
+                }
             }
         case .connectionError:
             for topic in mqttClientsWithTopics[mqttClient]! {
