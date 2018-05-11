@@ -387,13 +387,13 @@ public class AWSAppSyncClient: NetworkConnectionNotification {
         return apolloClient!.watch(query: query, cachePolicy: cachePolicy, queue: queue, resultHandler: resultHandler)
     }
     
-    public func subscribe<Subscription: GraphQLSubscription>(subscription: Subscription, queue: DispatchQueue = DispatchQueue.main, resultHandler: @escaping SubscriptionResultHandler<Subscription>) throws -> AWSAppSyncSubscriptionWatcher<Subscription>? {
+    public func subscribe<Subscription: GraphQLSubscription>(subscription: Subscription, queue: DispatchQueue = DispatchQueue.main, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) throws -> AWSAppSyncSubscriptionWatcher<Subscription>? {
         
         return AWSAppSyncSubscriptionWatcher(client: self.appSyncMQTTClient,
                                               httpClient: self.httpTransport!,
                                               store: self.store!,
                                               subscription: subscription,
-                                              handlerQueue: queue,
+                                              handlerQueue: queue, otherMQTTConnectionStateHandler: otherMQTTConnectionStateHandler,
                                               resultHandler: resultHandler)
     }
     

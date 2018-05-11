@@ -5,16 +5,6 @@
 
 import Dispatch
 
-
-extension Notification.Name {
-    public static let appSyncSubConnectionStateUnknown = Notification.Name(rawValue: "com.appsync.sub.connection.state.unknown")
-    public static let appSyncSubConnectionStateConnecting = Notification.Name(rawValue: "com.appsync.sub.connection.state.connecting")
-    public static let appSyncSubConnectionStateConnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.connected")
-    public static let appSyncSubConnectionStateConnectionErr = Notification.Name(rawValue: "com.appsync.sub.connection.state.err")
-    public static let appSyncSubConnectionStateConnectionRefused = Notification.Name(rawValue: "com.appsync.sub.connection.state.refused")
-    public static let appSyncConnectionStateDisconnected = Notification.Name(rawValue: "com.appsync.sub.connection.state.disconnected")
-}
-
 protocol MQTTSubscritionWatcher {
     func getIdentifier() -> Int
     func getTopics() -> [String]
@@ -55,24 +45,24 @@ class SubscriptionsOrderHelper {
 /// A `AWSAppSyncSubscriptionWatcher` is responsible for watching the subscription, and calling the result handler with a new result whenever any of the data is published on the MQTT topic. It also normalizes the cache before giving the callback to customer.
 public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscription>: MQTTSubscritionWatcher, Cancellable {
 
-    
-    
     weak var client: AppSyncMQTTClient?
     weak var httpClient: AWSAppSyncHTTPNetworkTransport?
     let subscription: Subscription?
     let handlerQueue: DispatchQueue
     let resultHandler: SubscriptionResultHandler<Subscription>
+    let otherMQTTConnectionStateHandler: (MQTTStatus) -> Void
     internal var subscriptionTopic: [String]?
     let store: ApolloStore
     public let uniqueIdentifier = SubscriptionsOrderHelper.sharedInstance.getLatestCount()
     
-    init(client: AppSyncMQTTClient, httpClient: AWSAppSyncHTTPNetworkTransport, store: ApolloStore, subscription: Subscription, handlerQueue: DispatchQueue, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+    init(client: AppSyncMQTTClient, httpClient: AWSAppSyncHTTPNetworkTransport, store: ApolloStore, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
         self.client = client
         self.httpClient = httpClient
         self.store = store
         self.subscription = subscription
         self.handlerQueue = handlerQueue
         self.resultHandler = resultHandler
+        self.otherMQTTConnectionStateHandler = otherMQTTConnectionStateHandler
         // start the subscriptionr request process on a background thread
         DispatchQueue.global(qos: .userInitiated).async {
             self.startSubscription()
@@ -122,9 +112,13 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     }
     
     func otherConnectionCallbackDelegate(status: MQTTStatus) {
-        
+
+        if case .disconnected = status {
+            //handled by the result handler as err, don't break that logic
+            return
+        }
 //        send notification about the status
-        print("otherconnection call back delegate with status: \(status), subscriptiontopicArr = \(subscriptionTopic)")
+        otherMQTTConnectionStateHandler(status)
     }
     
     func messageCallbackDelegate(data: Data) {
