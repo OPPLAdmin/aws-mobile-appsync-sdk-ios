@@ -61,12 +61,14 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
         self.store = store
         self.subscription = subscription
         self.handlerQueue = handlerQueue
+
         self.resultHandler = { result, transaction, err in
             handlerQueue.async {
                 resultHandler(result, transaction, err)
             }
         }
         self.otherMQTTConnectionStateHandler = otherMQTTConnectionStateHandler
+
         // start the subscriptionr request process on a background thread
         DispatchQueue.global(qos: .userInitiated).async {
             self.startSubscription()
