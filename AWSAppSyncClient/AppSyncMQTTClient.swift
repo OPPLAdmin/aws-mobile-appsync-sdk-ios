@@ -94,9 +94,9 @@ class AppSyncMQTTClient: MQTTClientDelegate {
         func createTimer(_ interval: Int, queue: DispatchQueue, block: @escaping () -> Void) -> DispatchSourceTimer {
             let timer = DispatchSource.makeTimerSource(flags: DispatchSource.TimerFlags(rawValue: 0), queue: queue)
             #if swift(>=4)
-            timer.schedule(deadline: .now() + .seconds(interval))
+                timer.schedule(deadline: .now() + .seconds(interval))
             #else
-            timer.scheduleOneshot(deadline: .now() + .seconds(interval))
+                timer.scheduleOneshot(deadline: .now() + .seconds(interval))
             #endif
             timer.setEventHandler(handler: block)
             timer.resume()
@@ -111,6 +111,12 @@ class AppSyncMQTTClient: MQTTClientDelegate {
         for client in mqttClients {
             client.clientDelegate = nil
             client.disconnect()
+        }
+        mqttClients = []
+        mqttClientsWithTopics = [:]
+        
+        for subscription in subscriptionInfo {
+            startNewSubscription(subscriptionInfo: subscription)
         }
     }
     
