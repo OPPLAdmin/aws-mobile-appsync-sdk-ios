@@ -315,6 +315,7 @@ public class AWSAppSyncClient: NetworkConnectionNotification {
     private var autoSubmitOfflineMutations: Bool = false
     private var mqttClient = MQTTClient<AnyObject, AnyObject>()
     private var appSyncMQTTClient = AppSyncMQTTClient()
+    private var subscriptionQueue = DispatchQueue(label: "subscriptionqueue", qos: .userInitiated)
     
     internal var connectionStateChangeHandler: ConnectionStateChangeHandler?
     
@@ -430,8 +431,10 @@ public class AWSAppSyncClient: NetworkConnectionNotification {
         return AWSAppSyncSubscriptionWatcher(client: self.appSyncMQTTClient,
                                               httpClient: self.httpTransport!,
                                               store: self.store!,
+                                              subscriptionQueue: self.subscriptionQueue,
                                               subscription: subscription,
-                                              handlerQueue: queue, otherMQTTConnectionStateHandler: otherMQTTConnectionStateHandler,
+                                              handlerQueue: queue,
+                                              otherMQTTConnectionStateHandler: otherMQTTConnectionStateHandler,
                                               resultHandler: resultHandler)
     }
     

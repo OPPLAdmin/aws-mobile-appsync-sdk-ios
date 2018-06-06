@@ -49,13 +49,14 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     weak var httpClient: AWSAppSyncHTTPNetworkTransport?
     let subscription: Subscription?
     let handlerQueue: DispatchQueue
+    let subscriptionQueue: DispatchQueue
     let resultHandler: SubscriptionResultHandler<Subscription>
     let otherMQTTConnectionStateHandler: (MQTTStatus) -> Void
     internal var subscriptionTopic: [String]?
     let store: ApolloStore
     public let uniqueIdentifier = SubscriptionsOrderHelper.sharedInstance.getLatestCount()
     
-    init(client: AppSyncMQTTClient, httpClient: AWSAppSyncHTTPNetworkTransport, store: ApolloStore, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+    init(client: AppSyncMQTTClient, httpClient: AWSAppSyncHTTPNetworkTransport, store: ApolloStore, subscriptionQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
         self.client = client
         self.httpClient = httpClient
         self.store = store
@@ -70,9 +71,12 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
         self.otherMQTTConnectionStateHandler = otherMQTTConnectionStateHandler
 
         // start the subscriptionr request process on a background thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.startSubscription()
-        }
+        self.subscriptionQueue = subscriptionQueue
+        self.startSubscription()
+//        DispatchQueue.global(qos: .userInitiated).async {
+//            self.startSubscription()
+//        }
+        
     }
     
     func getIdentifier() -> Int {
@@ -80,10 +84,24 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     }
     
     func startSubscription()  {
+        
+        subscriptionQueue.async {[weak self] in
+            let semaphore = DispatchSemaphore(value: 0)
+            
+            self?.performSubscriptionRequest(completion: { success, err in
+                if let err = err {
+                    self?.resultHandler(nil, nil, err)
+                }
+                semaphore.signal()
+            })
+            semaphore.wait()
+        }
+        
+    }
+    
+    
+    private func performSubscriptionRequest(completion: @escaping (Bool, Error?) -> Void) {
         do {
-            while (SubscriptionsOrderHelper.sharedInstance.shouldWait(id: self.uniqueIdentifier)) {
-                sleep(4)
-            }
             
             let _ = try self.httpClient?.sendSubscriptionRequest(operation: subscription!, completionHandler: { (response, error) in
                 SubscriptionsOrderHelper.sharedInstance.markDone(id: self.uniqueIdentifier)
@@ -95,18 +113,18 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
                             self.client?.addWatcher(watcher: self, topics: subscriptionResult.newTopics!, identifier: self.uniqueIdentifier)
                             self.client?.startSubscriptions(subscriptionInfo: subscriptionInfo)
                         }
+                        completion(true, nil)
                     } catch {
-                        self.resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+                        completion(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
                     }
                 } else if let error = error {
                     
-                    self.resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+                    completion(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
                 }
             })
         } catch {
-            resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+            completion(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
         }
-        
     }
     
     func getTopics() -> [String] {

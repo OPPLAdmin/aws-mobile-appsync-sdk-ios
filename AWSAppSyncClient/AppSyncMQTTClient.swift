@@ -9,23 +9,13 @@ import Reachability
 
 class AppSyncMQTTClient: MQTTClientDelegate {
     
-    var mqttClient = MQTTClient<AnyObject, AnyObject>()
     var mqttClients = [MQTTClient<AnyObject, AnyObject>]()
     var mqttClientsWithTopics = [MQTTClient<AnyObject, AnyObject>: [String]]()
-    var reachability: Reachability?
-    var hostURL: String?
-    var clientId: String?
     var topicSubscribersDictionary = [String: [MQTTSubscritionWatcher]]()
     var topicQueue = NSMutableSet()
-    var initialConnection = true
-    var shouldSubscribe = true
     var allowCellularAccess = true
-    var shouldReconnect = false
-    var previousAttempt: Date = Date()
-   
-    init() {
-        self.mqttClient.clientDelegate = self
-    }
+    var scheduledSubscription: DispatchSourceTimer?
+    var subscriptionQueue = DispatchQueue.global(qos: .userInitiated)
     
     func receivedMessageData(_ data: Data!, onTopic topic: String!) {
         let topics = topicSubscribersDictionary[topic]
@@ -101,19 +91,30 @@ class AppSyncMQTTClient: MQTTClientDelegate {
     }
     
     func startSubscriptions(subscriptionInfo: [AWSSubscriptionInfo]) {
+        func createTimer(_ interval: Int, queue: DispatchQueue, block: @escaping () -> Void) -> DispatchSourceTimer {
+            let timer = DispatchSource.makeTimerSource(flags: DispatchSource.TimerFlags(rawValue: 0), queue: queue)
+            #if swift(>=4)
+            timer.schedule(deadline: .now() + .seconds(interval))
+            #else
+            timer.scheduleOneshot(deadline: .now() + .seconds(interval))
+            #endif
+            timer.setEventHandler(handler: block)
+            timer.resume()
+            return timer
+        }
+        scheduledSubscription = createTimer(1, queue: subscriptionQueue, block: {[weak self] in
+            self?.resetAndStartSubscriptions(subscriptionInfo: subscriptionInfo)
+        })
+    }
+    
+    private func resetAndStartSubscriptions(subscriptionInfo: [AWSSubscriptionInfo]) {
         for client in mqttClients {
             client.clientDelegate = nil
             client.disconnect()
         }
-        mqttClients = []
-        mqttClientsWithTopics = [:]
-        
-        for subscription in subscriptionInfo {
-            startNewSubscription(subscriptionInfo: subscription)
-        }
     }
     
-    func startNewSubscription(subscriptionInfo: AWSSubscriptionInfo) {
+    private func startNewSubscription(subscriptionInfo: AWSSubscriptionInfo) {
         var topicQueue = [String]()
         let mqttClient = MQTTClient<AnyObject, AnyObject>()
         mqttClient.clientDelegate = self
