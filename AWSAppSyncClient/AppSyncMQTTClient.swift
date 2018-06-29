@@ -152,25 +152,25 @@ class AppSyncMQTTClient: MQTTClientDelegate {
 
     public func stopSubscription(subscription: MQTTSubscritionWatcher) {
         
-        self.subscriptionQueue.async {[weak self] in
-            guard let strongSelf = self else {
-                return
+        //        self.subscriptionQueue.async {[weak self] in
+        //            guard let strongSelf = self else {
+        //                return
+        //            }
+        topicSubscribersDictionary = updatedDictionary(topicSubscribersDictionary, usingCancelling: subscription)
+        
+        topicSubscribersDictionary.filter({ $0.value.isEmpty })
+            .map({ $0.key })
+            .forEach(unsubscribeTopic)
+        
+        for (client, _) in mqttClientsWithTopics.filter({ $0.value.isEmpty }) {
+            DispatchQueue.global(qos: .userInitiated).async { //might not be necessary since already in a subscription queue, will test
+                client.disconnect()
             }
-            strongSelf.topicSubscribersDictionary = strongSelf.updatedDictionary(strongSelf.topicSubscribersDictionary, usingCancelling: subscription)
             
-            strongSelf.topicSubscribersDictionary.filter({ $0.value.isEmpty })
-                .map({ $0.key })
-                .forEach(strongSelf.unsubscribeTopic)
-            
-            for (client, _) in strongSelf.mqttClientsWithTopics.filter({ $0.value.isEmpty }) {
-//                DispatchQueue.global(qos: .userInitiated).async { //might not be necessary since already in a subscription queue, will test
-                    client.disconnect()
-//                }
-                
-                strongSelf.mqttClientsWithTopics[client] = nil
-                strongSelf.mqttClients.remove(client)
-            }
+            mqttClientsWithTopics[client] = nil
+            mqttClients.remove(client)
         }
+        //        }
 
     }
     
