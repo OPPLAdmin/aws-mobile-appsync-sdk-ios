@@ -46,17 +46,18 @@ class SubscriptionsOrderHelper {
 public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscription>: MQTTSubscritionWatcher, Cancellable {
 
     weak var client: AppSyncMQTTClient?
-    weak var httpClient: AWSAppSyncHTTPNetworkTransport?
+    weak var httpClient: AWSNetworkTransport?
     let subscription: Subscription?
     let handlerQueue: DispatchQueue
-    let subscriptionQueue: DispatchQueue
     let resultHandler: SubscriptionResultHandler<Subscription>
     let otherMQTTConnectionStateHandler: (MQTTStatus) -> Void
     internal var subscriptionTopic: [String]?
     let store: ApolloStore
     public let uniqueIdentifier = SubscriptionsOrderHelper.sharedInstance.getLatestCount()
     
-    init(client: AppSyncMQTTClient, httpClient: AWSAppSyncHTTPNetworkTransport, store: ApolloStore, subscriptionQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+
+    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscriptionsQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+
         self.client = client
         self.httpClient = httpClient
         self.store = store
@@ -71,11 +72,10 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
         self.otherMQTTConnectionStateHandler = otherMQTTConnectionStateHandler
 
         // start the subscriptionr request process on a background thread
-        self.subscriptionQueue = subscriptionQueue
-        self.startSubscription()
-//        DispatchQueue.global(qos: .userInitiated).async {
-//            self.startSubscription()
-//        }
+        subscriptionsQueue.async {[weak self] in
+            self?.startSubscription()
+        }
+        
         
     }
     
@@ -85,17 +85,17 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     
     func startSubscription()  {
         
-        subscriptionQueue.async {[weak self] in
-            let semaphore = DispatchSemaphore(value: 0)
-            
-            self?.performSubscriptionRequest(completion: { success, err in
-                if let err = err {
-                    self?.resultHandler(nil, nil, err)
-                }
-                semaphore.signal()
-            })
-            semaphore.wait()
-        }
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        self.performSubscriptionRequest(completion: {[weak self] (success, err) in
+            if let err = err {
+                self?.resultHandler(nil, nil, err)
+            }
+            semaphore.signal()
+        })
+        semaphore.wait()
+        
         
     }
     
@@ -108,7 +108,7 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
                 if let response = response {
                     do {
                         let subscriptionResult = try AWSGraphQLSubscriptionResponseParser(body: response).parseResult()
-                        if let subscriptionInfo = subscriptionResult.subscrptionInfo {
+                        if let subscriptionInfo = subscriptionResult.subscriptionInfo {
                             self.subscriptionTopic = subscriptionResult.newTopics
                             self.client?.addWatcher(watcher: self, topics: subscriptionResult.newTopics!, identifier: self.uniqueIdentifier)
                             self.client?.startSubscriptions(subscriptionInfo: subscriptionInfo)
