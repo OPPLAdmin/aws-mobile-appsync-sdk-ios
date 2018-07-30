@@ -349,7 +349,7 @@ public class AWSAppSyncClient: NetworkConnectionNotification {
     private var offlineMuationCacheClient : AWSAppSyncOfflineMutationCache?
     private var offlineMutationExecutor: MutationExecutor?
     private var autoSubmitOfflineMutations: Bool = false
-    private var mqttClient = MQTTClient<AnyObject, AnyObject>()
+    private var mqttClient = AWSIoTMQTTClient<AnyObject, AnyObject>()
     private var appSyncMQTTClient = AppSyncMQTTClient()
     private var subscriptionQueue = DispatchQueue(label: "subscriptionqueue", qos: .userInitiated)
     
@@ -448,7 +448,7 @@ public class AWSAppSyncClient: NetworkConnectionNotification {
         return apolloClient!.watch(query: query, cachePolicy: cachePolicy, queue: queue, resultHandler: resultHandler)
     }
     
-    public func subscribe<Subscription: GraphQLSubscription>(subscription: Subscription, queue: DispatchQueue = DispatchQueue.main, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) throws -> AWSAppSyncSubscriptionWatcher<Subscription>? {
+    public func subscribe<Subscription: GraphQLSubscription>(subscription: Subscription, queue: DispatchQueue = DispatchQueue.main, otherMQTTConnectionStateHandler: @escaping (AWSIoTMQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) throws -> AWSAppSyncSubscriptionWatcher<Subscription>? {
         
         return AWSAppSyncSubscriptionWatcher(client: self.appSyncMQTTClient,
                                               httpClient: self.httpTransport!,

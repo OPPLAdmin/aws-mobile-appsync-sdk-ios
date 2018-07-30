@@ -7,11 +7,12 @@ import Foundation
 import Reachability
 
 
-class AppSyncMQTTClient: MQTTClientDelegate {
+class AppSyncMQTTClient: AWSIoTMQTTClientDelegate {
     
-    var mqttClient = MQTTClient<AnyObject, AnyObject>()
-    var mqttClients = Set<MQTTClient<AnyObject, AnyObject>>()
-    var mqttClientsWithTopics = [MQTTClient<AnyObject, AnyObject>: Set<String>]()
+    var mqttClient = AWSIoTMQTTClient<AnyObject, AnyObject>()
+    var mqttClients = Set<AWSIoTMQTTClient<AnyObject, AnyObject>>()
+    var mqttClientsWithTopics = [AWSIoTMQTTClient<AnyObject, AnyObject>: Set<String>]()
+
     var reachability: Reachability?
     var hostURL: String?
     var clientId: String?
@@ -37,7 +38,8 @@ class AppSyncMQTTClient: MQTTClientDelegate {
 
     }
     
-    func connectionStatusChanged(_ status: MQTTStatus, client mqttClient: MQTTClient<AnyObject, AnyObject>) {
+//<<<<<<< HEAD
+    func connectionStatusChanged(_ status: AWSIoTMQTTStatus, client mqttClient: AWSIoTMQTTClient<AnyObject, AnyObject>) {
         
         subscriptionQueue.async {[weak self] in
             guard let strongSelf = self else {
@@ -79,6 +81,23 @@ class AppSyncMQTTClient: MQTTClientDelegate {
                         
                         subscriber.disconnectCallbackDelegate(error: error)
                     }
+//=======
+//    func connectionStatusChanged(_ status: AWSIoTMQTTStatus, client mqttClient: AWSIoTMQTTClient<AnyObject, AnyObject>) {
+//        if status.rawValue == 2 {
+//            for topic in mqttClientsWithTopics[mqttClient]! {
+//                mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
+//            }
+//        } else if status.rawValue >= 3  {
+//            guard mqttClientsWithTopics[mqttClient] != nil else {return}
+//            for topic in mqttClientsWithTopics[mqttClient]! {
+//                let subscribers = topicSubscribersDictionary[topic]
+//                for subscriber in subscribers! {
+//                    let error = AWSAppSyncSubscriptionError(additionalInfo: "Subscription Terminated.", errorDetails:  [
+//                        "recoverySuggestion" : "Restart subscription request.",
+//                        "failureReason" : "Disconnected from service."])
+//
+//                    subscriber.disconnectCallbackDelegate(error: error)
+//>>>>>>> master
                 }
             }
 
@@ -141,13 +160,17 @@ class AppSyncMQTTClient: MQTTClientDelegate {
             return
         }
         
-        let mqttClient = MQTTClient<AnyObject, AnyObject>()
+
+        let mqttClient = AWSIoTMQTTClient<AnyObject, AnyObject>()
+
         mqttClient.clientDelegate = self
         
         mqttClients.insert(mqttClient)
         mqttClientsWithTopics[mqttClient] = Set(interestedTopics)
 
-        mqttClient.connect(withClientId: subscriptionInfo.clientId, toHost: subscriptionInfo.url, statusCallback: nil)
+        
+        mqttClient.connect(withClientId: subscriptionInfo.clientId, presignedURL: subscriptionInfo.url, statusCallback: nil)
+
     }
 
     public func stopSubscription(subscription: MQTTSubscritionWatcher) {
@@ -159,19 +182,32 @@ class AppSyncMQTTClient: MQTTClientDelegate {
         topicSubscribersDictionary = updatedDictionary(topicSubscribersDictionary, usingCancelling: subscription)
         
         topicSubscribersDictionary.filter({ $0.value.isEmpty })
-            .map({ $0.key })
-            .forEach(unsubscribeTopic)
+//<<<<<<< HEAD
+//            .map({ $0.key })
+//            .forEach(unsubscribeTopic)
+//
+//        for (client, _) in mqttClientsWithTopics.filter({ $0.value.isEmpty }) {
+//            DispatchQueue.global(qos: .userInitiated).async { //might not be necessary since already in a subscription queue, will test
+//                client.disconnect()
+//            }
+//
+//            mqttClientsWithTopics[client] = nil
+//            mqttClients.remove(client)
+//        }
+//        //        }
+//
+//=======
+                                  .map({ $0.key })
+                                  .forEach(unsubscribeTopic)
         
         for (client, _) in mqttClientsWithTopics.filter({ $0.value.isEmpty }) {
-            DispatchQueue.global(qos: .userInitiated).async { //might not be necessary since already in a subscription queue, will test
+            DispatchQueue.global(qos: .userInitiated).async {
                 client.disconnect()
             }
-            
             mqttClientsWithTopics[client] = nil
             mqttClients.remove(client)
         }
-        //        }
-
+//>>>>>>> master
     }
     
     
@@ -197,7 +233,7 @@ class AppSyncMQTTClient: MQTTClientDelegate {
     /// - Parameter topic: String
     private func unsubscribeTopic(topic: String) {
 
-        for (client, _) in mqttClientsWithTopics.filter({ $0.value.contains(topic) }) {
+        for (client, _)  in mqttClientsWithTopics.filter({ $0.value.contains(topic) }) {
 
             client.unsubscribeTopic(topic)
             mqttClientsWithTopics[client]?.remove(topic)

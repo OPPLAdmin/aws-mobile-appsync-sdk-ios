@@ -10,7 +10,7 @@ protocol MQTTSubscritionWatcher {
     func getTopics() -> [String]
     func messageCallbackDelegate(data: Data)
     func disconnectCallbackDelegate(error: Error)
-    func otherConnectionCallbackDelegate(status: MQTTStatus)
+    func otherConnectionCallbackDelegate(status: AWSIoTMQTTStatus)
 }
 
 class SubscriptionsOrderHelper {
@@ -50,14 +50,18 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     let subscription: Subscription?
     let handlerQueue: DispatchQueue
     let resultHandler: SubscriptionResultHandler<Subscription>
-    let otherMQTTConnectionStateHandler: (MQTTStatus) -> Void
+    let otherMQTTConnectionStateHandler: (AWSIoTMQTTStatus) -> Void
     internal var subscriptionTopic: [String]?
     let store: ApolloStore
     public let uniqueIdentifier = SubscriptionsOrderHelper.sharedInstance.getLatestCount()
     
+//<<<<<<< HEAD
 
-    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscriptionsQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (MQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscriptionsQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, otherMQTTConnectionStateHandler: @escaping (AWSIoTMQTTStatus) -> Void, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
 
+//=======
+//    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscription: Subscription, handlerQueue: DispatchQueue, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+//>>>>>>> master
         self.client = client
         self.httpClient = httpClient
         self.store = store
@@ -135,7 +139,7 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
         self.resultHandler(nil, nil, error)
     }
     
-    func otherConnectionCallbackDelegate(status: MQTTStatus) {
+    func otherConnectionCallbackDelegate(status: AWSIoTMQTTStatus) {
 
         if case .disconnected = status {
             //handled by the result handler as err, don't break that logic
