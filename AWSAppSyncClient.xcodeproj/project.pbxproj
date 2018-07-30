@@ -44,7 +44,6 @@
 		17D2C2071F6F44A3006C6818 /* AWSOfflineMutationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D2C2061F6F44A3006C6818 /* AWSOfflineMutationStore.swift */; };
 		17E009BB1FCAB234005031DB /* GraphQLDependencyTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E009991FCAB230005031DB /* GraphQLDependencyTracker.swift */; };
 		17E009BC1FCAB234005031DB /* AWSGraphQLSubscriptionResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E0099A1FCAB230005031DB /* AWSGraphQLSubscriptionResponse.swift */; };
-		17E009BD1FCAB234005031DB /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 17E0099B1FCAB230005031DB /* Info.plist */; };
 		17E009BE1FCAB234005031DB /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E0099C1FCAB230005031DB /* JSON.swift */; };
 		17E009BF1FCAB234005031DB /* DataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E0099D1FCAB230005031DB /* DataLoader.swift */; };
 		17E009C01FCAB234005031DB /* InMemoryNormalizedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E0099E1FCAB230005031DB /* InMemoryNormalizedCache.swift */; };
@@ -470,7 +469,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				17E009BD1FCAB234005031DB /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
