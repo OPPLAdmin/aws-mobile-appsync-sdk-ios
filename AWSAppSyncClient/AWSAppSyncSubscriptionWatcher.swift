@@ -1,11 +1,22 @@
 //
-//  AWSAppSyncSubscriptionWatcher.swift
-//  AWSAppSync
+// Copyright 2010-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License").
+// You may not use this file except in compliance with the License.
+// A copy of the License is located at
+//
+// http://aws.amazon.com/apache2.0
+//
+// or in the "license" file accompanying this file. This file is distributed
+// on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+// express or implied. See the License for the specific language governing
+// permissions and limitations under the License.
 //
 
 import Dispatch
+import os.log
 
-protocol MQTTSubscritionWatcher {
+@objc protocol MQTTSubscritionWatcher: AnyObject {
     func getIdentifier() -> Int
     func getTopics() -> [String]
     func messageCallbackDelegate(data: Data)
@@ -53,7 +64,7 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     let store: ApolloStore
     public let uniqueIdentifier = SubscriptionsOrderHelper.sharedInstance.getLatestCount()
     
-    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscription: Subscription, handlerQueue: DispatchQueue, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
+    init(client: AppSyncMQTTClient, httpClient: AWSNetworkTransport, store: ApolloStore, subscriptionsQueue: DispatchQueue, subscription: Subscription, handlerQueue: DispatchQueue, resultHandler: @escaping SubscriptionResultHandler<Subscription>) {
         self.client = client
         self.httpClient = httpClient
         self.store = store
@@ -64,9 +75,8 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
                 resultHandler(result, transaction, error)
             }
         }
-        // start the subscriptionr request process on a background thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.startSubscription()
+        subscriptionsQueue.async { [weak self] in
+            self?.startSubscription()
         }
     }
     
@@ -74,14 +84,22 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
         return uniqueIdentifier
     }
     
-    func startSubscription()  {
-        do {
-            while (SubscriptionsOrderHelper.sharedInstance.shouldWait(id: self.uniqueIdentifier)) {
-                sleep(4)
+    private func startSubscription()  {
+        let semaphore = DispatchSemaphore(value: 0)
+        
+        self.performSubscriptionRequest(completionHandler: { [weak self] (success, error) in
+            if let error = error {
+                self?.resultHandler(nil, nil, error)
             }
-            
+            semaphore.signal()
+        })
+        
+        semaphore.wait()
+    }
+    
+    private func performSubscriptionRequest(completionHandler: @escaping (Bool, Error?) -> Void) {
+        do {
             let _ = try self.httpClient?.sendSubscriptionRequest(operation: subscription!, completionHandler: { (response, error) in
-                SubscriptionsOrderHelper.sharedInstance.markDone(id: self.uniqueIdentifier)
                 if let response = response {
                     do {
                         let subscriptionResult = try AWSGraphQLSubscriptionResponseParser(body: response).parseResult()
@@ -90,18 +108,17 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
                             self.client?.addWatcher(watcher: self, topics: subscriptionResult.newTopics!, identifier: self.uniqueIdentifier)
                             self.client?.startSubscriptions(subscriptionInfo: subscriptionInfo)
                         }
+                        completionHandler(true, nil)
                     } catch {
-                        self.resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+                        completionHandler(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
                     }
                 } else if let error = error {
-                    
-                    self.resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+                    completionHandler(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
                 }
             })
         } catch {
-            resultHandler(nil, nil, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
+            completionHandler(false, AWSAppSyncSubscriptionError(additionalInfo: error.localizedDescription, errorDetails: nil))
         }
-        
     }
     
     func getTopics() -> [String] {
@@ -114,8 +131,20 @@ public final class AWSAppSyncSubscriptionWatcher<Subscription: GraphQLSubscripti
     
     func messageCallbackDelegate(data: Data) {
         do {
-            let datastring = NSString(data: data, encoding: String.Encoding.utf8.rawValue)! as String
-            let jsonObject = try JSONSerializationFormat.deserialize(data: datastring.data(using: String.Encoding(rawValue: String.Encoding.utf8.rawValue))!) as! JSONObject
+            AppSyncLog.verbose("Received message in messageCallbackDelegate")
+            
+            guard let _ = NSString(data: data, encoding: String.Encoding.utf8.rawValue) else {
+                AppSyncLog.error("Unable to convert message data to String using UTF8 encoding")
+                AppSyncLog.debug("Message data is [\(data)]")
+                return
+            }
+           
+            guard let jsonObject = try JSONSerializationFormat.deserialize(data: data) as? JSONObject else {
+                AppSyncLog.error("Unable to deserialize message data")
+                AppSyncLog.debug("Message data is [\(data)]")
+                return
+            }
+            
             let response = GraphQLResponse(operation: subscription!, body: jsonObject)
             
             firstly {
