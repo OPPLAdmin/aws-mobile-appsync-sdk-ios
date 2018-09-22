@@ -45,41 +45,18 @@ class AppSyncMQTTClient: AWSIoTMQTTClientDelegate {
             switch status {
                 
             case .unknown, .connecting, .connectionRefused, .disconnected, .protocolError:
-                guard strongSelf.mqttClientsWithTopics[mqttClient] != nil else {return} //added to make sure no issue, follow master commit
-                
-                for topic in topics {
-                    
-                    for subscriber in subscribers {
-                        subscriber.otherConnectionCallbackDelegate(status: status)
-                    }
-                }
-                
+                subscribers.forEach { $0.otherConnectionCallbackDelegate(status: status) }
             case .connected:
-                guard strongSelf.mqttClientsWithTopics[mqttClient] != nil else {return} //added to make sure no issue, follow master commit
-                
-                for topic in strongSelf.mqttClientsWithTopics[mqttClient]! {
-                    mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
-                    
-                    for subscriber in subscribers {
-                        subscriber.otherConnectionCallbackDelegate(status: status)
-                    }
-                }
-                
-            case .connectionError:
-                guard strongSelf.mqttClientsWithTopics[mqttClient] != nil else {return} //added by master commit
-                
                 for topic in topics {
-
-                    for subscriber in subscribers {
-                        let error = AWSAppSyncSubscriptionError(additionalInfo: "Subscription Terminated.", errorDetails:  [
-                            "recoverySuggestion" : "Restart subscription request.",
-                            "failureReason" : "Disconnected from service."])
-                        
-                        subscriber.disconnectCallbackDelegate(error: error)
-                    }
-
-
+                    mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
+                    subscribers.forEach { $0.otherConnectionCallbackDelegate(status: status) }
                 }
+            case .connectionError:
+                let error = AWSAppSyncSubscriptionError(additionalInfo: "Subscription Terminated.", errorDetails:  [
+                    "recoverySuggestion" : "Restart subscription request.",
+                    "failureReason" : "Disconnected from service."])
+                
+                subscribers.forEach { $0.disconnectCallbackDelegate(error: error) }
             }
 
         }
