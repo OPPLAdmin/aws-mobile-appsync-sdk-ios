@@ -3,7 +3,43 @@
 The AWS AppSync SDK for iOS enables you to access your AWS AppSync backend and perform operations like `Queries`, `Mutations` and `Subscriptions`. The SDK also includes support for offline operations.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+## 2.6.22
+
+### Enhancements
+
+* Allow multiple active subscriptions while using `API_KEY` auth.
+* Add retry logic for the HTTP service calls.
+* Allow responses to have missing fields if they are optional.
+* Fix issue with optimistic writes which would incorrectly throw `JSONDecodingError.missingValue` error. See issues [#51](https://github.com/awslabs/aws-mobile-appsync-sdk-ios/issues/51) [#8](https://github.com/aws-samples/aws-mobile-appsync-events-starter-ios/issues/8)
+* Fix warnings imposed by iOS 12. [See PR#71](https://github.com/awslabs/aws-mobile-appsync-sdk-ios/pull/71)
+
+## 2.6.21
+
+### Enhancements
+
+* Improve subscriptions logic to use a single shared queue and avoid delay between multiple subscriptions. [See PR#28](https://github.com/awslabs/aws-mobile-appsync-sdk-ios/pull/28) Thanks @MarioBajr! 🎉
+
+## 2.6.20
+
+### Enhancements
+
+* Allow asynchronous fetching of User Pools / OIDC auth token. [See PR#62](https://github.com/awslabs/aws-mobile-appsync-sdk-ios/pull/62) Thanks @JohnRbk 🎉
+* Integrate logging with `AWSDDLog`. To print logs from the SDK, follow instructions mentioned [here](https://github.com/aws/aws-sdk-ios#logging).
+
+### Bug Fixes
+
+* Fixed a bug in loading configuration from `awsconfiguration.json`
+* Fixed a bug where receiving a non String or JSON object would cause SDK to crash. The SDK would now instead log an error message.
+
+## 2.6.19
+
+### New Features
+* Add support for AWS AppSync configuration through `awsconfiguration.json` in `AWSAppSyncClient`.
+
+>>>>>>> master
 ## 2.6.18
 
 ### Enhancements
