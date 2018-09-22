@@ -37,25 +37,33 @@ class AppSyncMQTTClient: AWSIoTMQTTClientDelegate {
             guard let strongSelf = self, let topics = strongSelf.mqttClientsWithTopics[mqttClient] else {
                 return
             }
-            let subscribers = topics
-                .map { self?.topicSubscribers[$0] }
-                .flatMap { $0 }
-                .flatMap { $0 }
+
             //prepare to refactor this part
             switch status {
                 
             case .unknown, .connecting, .connectionRefused, .disconnected, .protocolError:
+                let subscribers = topics
+                    .map { self?.topicSubscribers[$0] }
+                    .flatMap { $0 }
+                    .flatMap { $0 }
                 subscribers.forEach { $0.otherConnectionCallbackDelegate(status: status) }
             case .connected:
                 for topic in topics {
                     mqttClient.subscribe(toTopic: topic, qos: 1, extendedCallback: nil)
+                    let subscribers = topics
+                        .map { self?.topicSubscribers[$0] }
+                        .flatMap { $0 }
+                        .flatMap { $0 }
                     subscribers.forEach { $0.otherConnectionCallbackDelegate(status: status) }
                 }
             case .connectionError:
                 let error = AWSAppSyncSubscriptionError(additionalInfo: "Subscription Terminated.", errorDetails:  [
                     "recoverySuggestion" : "Restart subscription request.",
                     "failureReason" : "Disconnected from service."])
-                
+                let subscribers = topics
+                    .map { self?.topicSubscribers[$0] }
+                    .flatMap { $0 }
+                    .flatMap { $0 }
                 subscribers.forEach { $0.disconnectCallbackDelegate(error: error) }
             }
 
